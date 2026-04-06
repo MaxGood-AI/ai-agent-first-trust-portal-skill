@@ -68,9 +68,27 @@ python3 scripts/trust_portal_api.py upload-decision-log --file /path/to/transcri
 4. `update-control --id X --data-file /tmp/update.json` — update fields
 5. `delete-control --id X` — remove a control
 
+### Record Test Execution
+1. `record-execution --test-id X --outcome success --finding "All checks passed"`
+2. `record-execution --test-id X --outcome failure --finding "MFA not enforced" --comment "2 users affected"`
+3. `record-execution --test-id X --outcome success --finding "Verified" --evidence-file /tmp/evidence.json` — include evidence
+4. `execution-history --test-id X` — view past executions for a test
+5. `execution-history --test-id X --limit 5` — limit results
+
+The `--evidence-file` flag accepts a JSON file containing an array of evidence items:
+```json
+[
+  {"evidence_type": "screenshot", "description": "Password manager showing AWS creds", "url": "https://..."},
+  {"evidence_type": "link", "description": "Audit log export", "url": "https://..."},
+  {"evidence_type": "file", "description": "Exported audit CSV", "file": "/path/to/audit.csv"}
+]
+```
+Items with a `file` field are read from disk and uploaded directly to the database. Items with a `url` field are stored as link references. Evidence items are linked to the test record and its evidence status is set to "submitted".
+
 ### Submit Evidence
 1. `evidence-gaps` — find what needs evidence
-2. `submit-evidence --test-record-id X --evidence-type link --url "..." --description "..."`
+2. `submit-evidence --test-record-id X --evidence-type link --url "..." --description "..."` — link evidence
+3. `submit-evidence --test-record-id X --evidence-type file --file /path/to/export.pdf --description "..."` — upload a file directly
 
 ### Decision Logs
 1. `upload-decision-log --file /path/to/transcript.jsonl` — upload a session transcript
@@ -112,6 +130,8 @@ Workflow:
 | `test` | Get a single test record |
 | `create-test` | Create a test record |
 | `update-test` | Update a test record |
+| `record-execution` | Record an externally-performed test execution result |
+| `execution-history` | Get execution history for a test record |
 | `policies` | List all policies |
 | `policy` | Get a single policy |
 | `systems` | List all systems |

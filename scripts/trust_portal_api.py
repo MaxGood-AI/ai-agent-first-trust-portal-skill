@@ -10,7 +10,9 @@ Environment variables (auto-loaded from .env if not in environment):
 """
 
 import argparse
+import base64
 import json
+import mimetypes
 import os
 from pathlib import Path
 import sys
@@ -207,6 +209,33 @@ def cmd_update_test(args):
     _output(_api_request("PUT", f"/api/tests/{args.id}", body=data))
 
 
+# --- Test Execution ---
+
+def cmd_record_execution(args):
+    body = {"outcome": args.outcome}
+    if args.finding:
+        body["finding"] = args.finding
+    if args.comment:
+        body["comment"] = args.comment
+    if args.evidence_file:
+        evidence = _read_data_file(args.evidence_file)
+        if not isinstance(evidence, list):
+            _error_exit("Evidence file must contain a JSON array of evidence items")
+        for item in evidence:
+            if "file" in item:
+                file_data, file_name, mime_type = _encode_file(item.pop("file"))
+                item["file_data"] = file_data
+                item.setdefault("file_name", file_name)
+                item.setdefault("file_mime_type", mime_type)
+        body["evidence"] = evidence
+    _output(_api_request("POST", f"/api/tests/{args.test_id}/record-execution", body=body))
+
+
+def cmd_execution_history(args):
+    params = {"limit": args.limit} if args.limit else None
+    _output(_api_request("GET", f"/api/tests/{args.test_id}/execution-history", params=params))
+
+
 # --- CRUD: Policies ---
 
 def cmd_policies(args):
@@ -245,6 +274,17 @@ def cmd_evidence(args):
     _output(_api_request("GET", "/api/evidence"))
 
 
+def _encode_file(file_path):
+    """Read a file and return base64 data, filename, and MIME type."""
+    p = Path(file_path)
+    if not p.is_file():
+        _error_exit(f"File not found: {file_path}")
+    mime_type = mimetypes.guess_type(str(p))[0] or "application/octet-stream"
+    with open(p, "rb") as f:
+        data = base64.b64encode(f.read()).decode("ascii")
+    return data, p.name, mime_type
+
+
 def cmd_submit_evidence(args):
     body = {
         "test_record_id": args.test_record_id,
@@ -253,6 +293,11 @@ def cmd_submit_evidence(args):
     }
     if args.url:
         body["url"] = args.url
+    if args.file:
+        file_data, file_name, mime_type = _encode_file(args.file)
+        body["file_data"] = file_data
+        body["file_name"] = file_name
+        body["file_mime_type"] = mime_type
     _output(_api_request("POST", "/api/evidence", body=body))
 
 
@@ -358,6 +403,17 @@ def main():
     p.add_argument("--id", required=True, help="Test record ID")
     p.add_argument("--data-file", required=True, help="JSON file with update data")
 
+    # Test Execution
+    p = sub.add_parser("record-execution", help="Record an externally-performed test execution result")
+    p.add_argument("--test-id", required=True, help="Test record ID")
+    p.add_argument("--outcome", required=True, choices=["success", "failure"], help="Test result")
+    p.add_argument("--finding", help="Description of what was found")
+    p.add_argument("--comment", help="Additional reviewer notes")
+    p.add_argument("--evidence-file", help="JSON file with array of evidence items [{evidence_type, description, url?, file_path?}]")
+    p = sub.add_parser("execution-history", help="Get execution history for a test record")
+    p.add_argument("--test-id", required=True, help="Test record ID")
+    p.add_argument("--limit", type=int, help="Max entries to return (default 20)")
+
     # Policies
     sub.add_parser("policies", help="List all policies")
     p = sub.add_parser("policy", help="Get a single policy")
@@ -383,6 +439,7 @@ def main():
     p.add_argument("--evidence-type", required=True, help="Evidence type: link, file, screenshot, automated")
     p.add_argument("--description", required=True, help="Evidence description")
     p.add_argument("--url", help="URL for link-type evidence")
+    p.add_argument("--file", help="Path to a file to upload as evidence")
 
     # Pentest Findings
     sub.add_parser("pentest-findings", help="List pentest findings")
@@ -421,6 +478,8 @@ def main():
         "test": cmd_test,
         "create-test": cmd_create_test,
         "update-test": cmd_update_test,
+        "record-execution": cmd_record_execution,
+        "execution-history": cmd_execution_history,
         "policies": cmd_policies,
         "policy": cmd_policy,
         "systems": cmd_systems,

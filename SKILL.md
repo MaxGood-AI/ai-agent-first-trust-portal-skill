@@ -85,6 +85,30 @@ The `--evidence-file` flag accepts a JSON file containing an array of evidence i
 ```
 Items with a `file` field are read from disk and uploaded directly to the database. Items with a `url` field are stored as link references. Evidence items are linked to the test record and its evidence status is set to "submitted".
 
+### Batch Operations
+1. `batch-record-execution --data-file /tmp/executions.json` — record results for multiple tests
+2. `batch-submit-evidence --data-file /tmp/evidence.json` — submit evidence to multiple tests
+
+Batch execution file format:
+```json
+{"executions": [
+  {"test_id": "abc", "outcome": "success", "finding": "All good"},
+  {"test_id": "def", "outcome": "failure", "finding": "MFA not enforced", "evidence": [
+    {"evidence_type": "screenshot", "description": "MFA settings page", "file": "/path/to/screenshot.png"}
+  ]}
+]}
+```
+
+Batch evidence file format:
+```json
+{"evidence": [
+  {"test_record_id": "abc", "evidence_type": "link", "description": "Scan report", "url": "https://..."},
+  {"test_record_id": "def", "evidence_type": "file", "description": "Export", "file": "/path/to/export.csv"}
+]}
+```
+
+Both return per-item results with succeeded/failed counts. Items with `file` paths are auto-encoded.
+
 ### Submit Evidence
 1. `evidence-gaps` — find what needs evidence
 2. `submit-evidence --test-record-id X --evidence-type link --url "..." --description "..."` — link evidence
@@ -132,6 +156,8 @@ Workflow:
 | `update-test` | Update a test record |
 | `record-execution` | Record an externally-performed test execution result |
 | `execution-history` | Get execution history for a test record |
+| `batch-record-execution` | Record execution results for multiple tests at once |
+| `batch-submit-evidence` | Submit evidence for multiple tests at once |
 | `policies` | List all policies |
 | `policy` | Get a single policy |
 | `systems` | List all systems |

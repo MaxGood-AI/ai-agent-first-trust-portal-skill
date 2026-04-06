@@ -236,6 +236,40 @@ def cmd_execution_history(args):
     _output(_api_request("GET", f"/api/tests/{args.test_id}/execution-history", params=params))
 
 
+def cmd_batch_record_execution(args):
+    data = _read_data_file(args.data_file)
+    executions = data.get("executions", data) if isinstance(data, dict) else data
+    if isinstance(executions, list):
+        for item in executions:
+            if "evidence" in item and isinstance(item["evidence"], list):
+                for ev in item["evidence"]:
+                    if "file" in ev:
+                        file_data, file_name, mime_type = _encode_file(ev.pop("file"))
+                        ev["file_data"] = file_data
+                        ev.setdefault("file_name", file_name)
+                        ev.setdefault("file_mime_type", mime_type)
+        body = {"executions": executions}
+    else:
+        _error_exit("Data file must contain an array or an object with 'executions' array")
+    _output(_api_request("POST", "/api/tests/batch-record-execution", body=body))
+
+
+def cmd_batch_submit_evidence(args):
+    data = _read_data_file(args.data_file)
+    evidence = data.get("evidence", data) if isinstance(data, dict) else data
+    if isinstance(evidence, list):
+        for item in evidence:
+            if "file" in item:
+                file_data, file_name, mime_type = _encode_file(item.pop("file"))
+                item["file_data"] = file_data
+                item.setdefault("file_name", file_name)
+                item.setdefault("file_mime_type", mime_type)
+        body = {"evidence": evidence}
+    else:
+        _error_exit("Data file must contain an array or an object with 'evidence' array")
+    _output(_api_request("POST", "/api/evidence/batch-submit", body=body))
+
+
 # --- CRUD: Policies ---
 
 def cmd_policies(args):
@@ -414,6 +448,12 @@ def main():
     p.add_argument("--test-id", required=True, help="Test record ID")
     p.add_argument("--limit", type=int, help="Max entries to return (default 20)")
 
+    # Batch Operations
+    p = sub.add_parser("batch-record-execution", help="Record execution results for multiple tests")
+    p.add_argument("--data-file", required=True, help="JSON file with executions array")
+    p = sub.add_parser("batch-submit-evidence", help="Submit evidence for multiple tests")
+    p.add_argument("--data-file", required=True, help="JSON file with evidence array")
+
     # Policies
     sub.add_parser("policies", help="List all policies")
     p = sub.add_parser("policy", help="Get a single policy")
@@ -480,6 +520,8 @@ def main():
         "update-test": cmd_update_test,
         "record-execution": cmd_record_execution,
         "execution-history": cmd_execution_history,
+        "batch-record-execution": cmd_batch_record_execution,
+        "batch-submit-evidence": cmd_batch_submit_evidence,
         "policies": cmd_policies,
         "policy": cmd_policy,
         "systems": cmd_systems,

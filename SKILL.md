@@ -1,6 +1,6 @@
 ---
 name: trust-portal
-description: Interact with the AI Agent-First Trust Portal via the compliance API. Use when the user wants to manage compliance controls, view or submit evidence, check compliance scores, review policies/systems/vendors/risks, query the audit log, upload decision logs, or manage portal settings. Supports listing and CRUD for controls, tests, policies, systems, vendors, evidence, risks, and pentest findings. Even if the user just says "check compliance", "what evidence is missing", "show the audit log", or mentions SOC 2 controls, tests, or evidence, use this skill.
+description: Let AI agents drive SOC 2 Type 2 compliance end-to-end. Use when the user wants to get SOC 2 compliant, start a compliance program, manage controls, view or submit evidence, check compliance scores, generate policies, review systems/vendors/risks, query the audit log, upload decision logs, or manage portal settings. TRIGGER on any of these phrases — "get me SOC 2 compliant", "set up compliance", "start our compliance program", "check compliance", "what evidence is missing", "show the audit log", or any mention of SOC 2 controls, tests, evidence, or policies. For end-to-end SOC 2 journey guidance, read references/soc2-playbook.md which contains the complete 8-phase workflow with exact API calls, decision trees, and conversational scripts.
 license: MIT
 compatibility: Requires python3 and environment variables TRUST_PORTAL_API_URL and TRUST_PORTAL_API_KEY
 metadata:
@@ -54,6 +54,17 @@ python3 scripts/trust_portal_api.py audit-log --table controls --limit 10
 # Upload decision log transcript
 python3 scripts/trust_portal_api.py upload-decision-log --file /path/to/transcript.jsonl
 ```
+
+## SOC 2 Journey — End-to-End Orchestration
+
+For the complete 8-phase SOC 2 journey (bootstrap → discovery → policies → controls → evidence → gap analysis → audit prep → ongoing), read the **[SOC 2 Agent Playbook](./references/soc2-playbook.md)**. It contains exact API call sequences, decision trees, and conversational scripts for driving the entire compliance program.
+
+**Quick start:**
+1. `compliance-journey` — Check current phase and what to do next
+2. Read `references/soc2-playbook.md` for the complete workflow
+3. Use `references/discovery-questions.json` for structured discovery interviews
+
+**Resuming after interruption:** Always call `compliance-journey` first. It returns the current phase, what's completed, and the next 1-3 actions to take.
 
 ## Core Workflows
 
@@ -143,6 +154,7 @@ Workflow:
 |---------|-------------|
 | `health` | Health check |
 | `compliance-score` | Overall and per-category compliance scores |
+| `compliance-journey` | Full SOC 2 journey state — current phase, completion checks, next actions |
 | `evidence-gaps` | Tests with missing or outdated evidence |
 | `settings` | Get portal settings |
 | `update-settings` | Update portal settings (admin) |

@@ -148,6 +148,10 @@ def cmd_compliance_score(args):
     _output(_api_request("GET", "/api/compliance-score"))
 
 
+def cmd_compliance_journey(args):
+    _output(_api_request("GET", "/api/compliance-journey"))
+
+
 def cmd_evidence_gaps(args):
     _output(_api_request("GET", "/api/gaps"))
 
@@ -408,6 +412,7 @@ def main():
 
     # Compliance
     sub.add_parser("compliance-score", help="Overall and per-category compliance scores")
+    sub.add_parser("compliance-journey", help="Full SOC 2 journey state — current phase, completion, next actions")
     sub.add_parser("evidence-gaps", help="Tests with missing or outdated evidence")
 
     # Settings
@@ -511,6 +516,7 @@ def main():
     commands = {
         "health": cmd_health,
         "compliance-score": cmd_compliance_score,
+        "compliance-journey": cmd_compliance_journey,
         "evidence-gaps": cmd_evidence_gaps,
         "settings": cmd_settings,
         "update-settings": cmd_update_settings,

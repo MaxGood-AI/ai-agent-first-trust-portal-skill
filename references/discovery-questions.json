@@ -1,0 +1,419 @@
+{
+  "version": "1.0",
+  "description": "Structured discovery questions for SOC 2 compliance readiness assessment. AI agents use these to interview the user and auto-create system/vendor/policy records from answers.",
+  "instructions": "Ask questions in section order. For each answer, check creates_records to auto-create entities. Check policy_input to note which policy template this answer informs. Follow follow_up logic when conditions match.",
+  "sections": [
+    {
+      "id": "organization",
+      "name": "Organization Profile",
+      "phase": 2,
+      "questions": [
+        {
+          "id": "org_001",
+          "question": "What is your company's legal name (as it would appear on contracts)?",
+          "required": true,
+          "type": "text",
+          "field_mapping": "settings.company_legal_name"
+        },
+        {
+          "id": "org_002",
+          "question": "What brand name do your customers know you by?",
+          "required": true,
+          "type": "text",
+          "field_mapping": "settings.company_brand_name"
+        },
+        {
+          "id": "org_003",
+          "question": "How many employees does your company have?",
+          "required": true,
+          "type": "choice",
+          "options": ["1-10", "11-50", "51-200", "201-1000", "1000+"],
+          "context": "This affects the scale and formality of controls needed."
+        },
+        {
+          "id": "org_004",
+          "question": "What industry are you in, and what does your product/service do?",
+          "required": true,
+          "type": "text",
+          "context": "Some industries have additional regulatory requirements beyond SOC 2."
+        },
+        {
+          "id": "org_005",
+          "question": "Are you pursuing SOC 2 Type 1 (point-in-time snapshot) or Type 2 (proves controls work over 3-12 months)?",
+          "required": true,
+          "type": "choice",
+          "options": ["Type 1", "Type 2", "Not sure"],
+          "follow_up": {
+            "condition": "Not sure",
+            "question": "Type 1 proves your controls exist at a point in time — faster but less valuable. Type 2 proves they work consistently over 3-12 months — what most customers require. I recommend starting with Type 2 preparation. Shall we proceed with Type 2?"
+          }
+        },
+        {
+          "id": "org_006",
+          "question": "Which Trust Service Criteria are in scope? Security is always required. Do your customers also need assurance about Availability, Confidentiality, Privacy, or Processing Integrity?",
+          "required": true,
+          "type": "multi_choice",
+          "options": ["Security (required)", "Availability", "Confidentiality", "Privacy", "Processing Integrity"],
+          "context": "If unsure, start with Security only. You can add categories later."
+        },
+        {
+          "id": "org_007",
+          "question": "Do you have any existing compliance frameworks? (ISO 27001, HIPAA, PCI DSS, GDPR, etc.)",
+          "required": false,
+          "type": "text",
+          "context": "Existing frameworks accelerate SOC 2 — many controls overlap."
+        }
+      ]
+    },
+    {
+      "id": "infrastructure",
+      "name": "Technology Infrastructure",
+      "phase": 2,
+      "questions": [
+        {
+          "id": "infra_001",
+          "question": "Which cloud providers does your company use? (AWS, GCP, Azure, DigitalOcean, etc.)",
+          "required": true,
+          "type": "text",
+          "creates_records": {"type": "system", "template": {"system_type": ["infrastructure"]}},
+          "follow_up": {
+            "condition_contains": "AWS",
+            "questions": [
+              {"id": "infra_001a", "question": "Do you have AWS access keys available for automated evidence collection? Our AWS collector checks IAM MFA, S3 encryption, RDS backups, security groups, CloudTrail, and 14 other services automatically.", "type": "yes_no", "field_mapping": "env.AWS_ACCESS_KEY_ID"},
+              {"id": "infra_001b", "question": "What AWS region is your primary infrastructure in?", "type": "text", "field_mapping": "env.AWS_REGION"}
+            ]
+          }
+        },
+        {
+          "id": "infra_002",
+          "question": "What databases do you use in production? (PostgreSQL, MySQL, MongoDB, DynamoDB, etc.) For each, where is it hosted?",
+          "required": true,
+          "type": "text",
+          "creates_records": {"type": "system", "template": {"system_type": ["infrastructure"]}}
+        },
+        {
+          "id": "infra_003",
+          "question": "What are your main production applications/services? List each with a one-line description of what it does.",
+          "required": true,
+          "type": "text",
+          "creates_records": {"type": "system", "template": {"system_type": ["application"]}}
+        },
+        {
+          "id": "infra_004",
+          "question": "How is your network segmented? Do you use VPCs, subnets, security groups, or firewalls?",
+          "required": false,
+          "type": "text",
+          "policy_input": "information-security-policy"
+        }
+      ]
+    },
+    {
+      "id": "security",
+      "name": "Security Practices",
+      "phase": 2,
+      "tsc_category": "security",
+      "questions": [
+        {
+          "id": "sec_001",
+          "question": "How do your employees log in to company systems? Do you use SSO, individual passwords, or something else?",
+          "required": true,
+          "type": "text",
+          "policy_input": "access-control-policy"
+        },
+        {
+          "id": "sec_002",
+          "question": "Is multi-factor authentication (MFA) required? For everyone, or only certain roles/systems?",
+          "required": true,
+          "type": "text",
+          "policy_input": "access-control-policy"
+        },
+        {
+          "id": "sec_003",
+          "question": "When a new employee starts, how do they get access to the systems they need? Who approves it? And when someone leaves, how quickly is their access revoked?",
+          "required": true,
+          "type": "text",
+          "policy_input": "access-control-policy"
+        },
+        {
+          "id": "sec_004",
+          "question": "How often do you review who has access to what? Monthly? Quarterly? Never?",
+          "required": true,
+          "type": "choice",
+          "options": ["Monthly", "Quarterly", "Semi-annually", "Annually", "Ad-hoc / never"],
+          "policy_input": "access-control-policy"
+        },
+        {
+          "id": "sec_005",
+          "question": "Is your data encrypted at rest? What method? (e.g., AES-256, AWS KMS managed keys)",
+          "required": true,
+          "type": "text",
+          "policy_input": "data-classification-and-handling-policy"
+        },
+        {
+          "id": "sec_006",
+          "question": "Is data encrypted in transit? (TLS/SSL on all endpoints, VPN for internal traffic?)",
+          "required": true,
+          "type": "text",
+          "policy_input": "data-classification-and-handling-policy"
+        },
+        {
+          "id": "sec_007",
+          "question": "What monitoring and alerting do you have? (CloudWatch, Datadog, PagerDuty, Grafana, etc.) What triggers an alert?",
+          "required": true,
+          "type": "text",
+          "creates_records": {"type": "system", "template": {"system_type": ["application"]}},
+          "policy_input": "information-security-policy"
+        },
+        {
+          "id": "sec_008",
+          "question": "If a security incident happened right now — say someone reported a suspicious login — what would you actually do? Walk me through your real process, not what you'd ideally like to do.",
+          "required": true,
+          "type": "text",
+          "policy_input": "incident-response-policy"
+        },
+        {
+          "id": "sec_009",
+          "question": "Do you do vulnerability scanning or penetration testing? What tools? How often?",
+          "required": true,
+          "type": "text",
+          "policy_input": "risk-management-policy"
+        },
+        {
+          "id": "sec_010",
+          "question": "Do employees get security awareness training? What does it look like — formal course, onboarding briefing, nothing?",
+          "required": false,
+          "type": "text",
+          "policy_input": "information-security-policy"
+        }
+      ]
+    },
+    {
+      "id": "change_management",
+      "name": "Change Management & Development",
+      "phase": 2,
+      "tsc_category": "security",
+      "questions": [
+        {
+          "id": "cm_001",
+          "question": "What source control platform do you use? (GitHub, GitLab, Bitbucket, AWS CodeCommit)",
+          "required": true,
+          "type": "text",
+          "creates_records": {"type": "system", "template": {"system_type": ["application"]}},
+          "follow_up": {
+            "condition_contains": "GitHub",
+            "questions": [
+              {"id": "cm_001a", "question": "What is your GitHub organization name?", "type": "text", "field_mapping": "env.GITHUB_ORG"},
+              {"id": "cm_001b", "question": "Which repos should we monitor for compliance evidence? (comma-separated)", "type": "text", "field_mapping": "env.GITHUB_REPOS"}
+            ]
+          }
+        },
+        {
+          "id": "cm_002",
+          "question": "Are code reviews (pull requests) required before merging? Required or optional? How many reviewers?",
+          "required": true,
+          "type": "text",
+          "policy_input": "change-management-policy"
+        },
+        {
+          "id": "cm_003",
+          "question": "What's your CI/CD setup? (GitHub Actions, Jenkins, CodePipeline, manual deploys?) Walk me through what happens from 'code merged' to 'running in production'.",
+          "required": true,
+          "type": "text",
+          "creates_records": {"type": "system", "template": {"system_type": ["application"]}},
+          "policy_input": "change-management-policy"
+        },
+        {
+          "id": "cm_004",
+          "question": "Do you have separate dev, staging, and production environments?",
+          "required": true,
+          "type": "yes_no",
+          "policy_input": "change-management-policy"
+        },
+        {
+          "id": "cm_005",
+          "question": "What project management tool do you use to track work? (KanbanZone, Jira, Linear, GitHub Issues, Trello, etc.)",
+          "required": true,
+          "type": "text",
+          "creates_records": {"type": "system", "template": {"system_type": ["application"]}},
+          "follow_up": {
+            "condition_contains": "KanbanZone",
+            "questions": [
+              {"id": "cm_005a", "question": "What is your KanbanZone board public ID? (Found in Board Settings > API)", "type": "text", "field_mapping": "env.KANBANZONE_BOARD_ID"}
+            ]
+          }
+        },
+        {
+          "id": "cm_006",
+          "question": "How do you handle emergency hotfixes that need to bypass the normal process?",
+          "required": false,
+          "type": "text",
+          "policy_input": "change-management-policy"
+        }
+      ]
+    },
+    {
+      "id": "availability",
+      "name": "Availability & Business Continuity",
+      "phase": 2,
+      "tsc_category": "availability",
+      "questions": [
+        {
+          "id": "avail_001",
+          "question": "What uptime do you promise or target? (e.g., 99.9% SLA)",
+          "required": true,
+          "type": "text",
+          "policy_input": "business-continuity-and-disaster-recovery-policy"
+        },
+        {
+          "id": "avail_002",
+          "question": "How are backups done? What's backed up, how often, and where are backups stored? Has a backup restore ever been tested?",
+          "required": true,
+          "type": "text",
+          "policy_input": "business-continuity-and-disaster-recovery-policy"
+        },
+        {
+          "id": "avail_003",
+          "question": "If your primary data center or cloud region went down, what would happen? Do you have a disaster recovery plan? When was it last tested?",
+          "required": true,
+          "type": "text",
+          "policy_input": "business-continuity-and-disaster-recovery-policy"
+        },
+        {
+          "id": "avail_004",
+          "question": "What's your Recovery Time Objective (how long until service is restored) and Recovery Point Objective (how much data can you afford to lose)?",
+          "required": true,
+          "type": "text",
+          "policy_input": "business-continuity-and-disaster-recovery-policy"
+        }
+      ]
+    },
+    {
+      "id": "confidentiality",
+      "name": "Data Confidentiality",
+      "phase": 2,
+      "tsc_category": "confidentiality",
+      "questions": [
+        {
+          "id": "conf_001",
+          "question": "Do you classify your data into sensitivity levels? What are they? (e.g., public, internal, confidential, restricted)",
+          "required": true,
+          "type": "text",
+          "policy_input": "data-classification-and-handling-policy"
+        },
+        {
+          "id": "conf_002",
+          "question": "How long do you keep different types of data? When data is no longer needed, how do you dispose of it?",
+          "required": true,
+          "type": "text",
+          "policy_input": "data-classification-and-handling-policy"
+        },
+        {
+          "id": "conf_003",
+          "question": "Do employees and contractors sign NDAs or confidentiality agreements?",
+          "required": false,
+          "type": "yes_no",
+          "policy_input": "data-classification-and-handling-policy"
+        }
+      ]
+    },
+    {
+      "id": "privacy",
+      "name": "Privacy & Data Protection",
+      "phase": 2,
+      "tsc_category": "privacy",
+      "questions": [
+        {
+          "id": "priv_001",
+          "question": "What personal data do you collect from users or customers? (names, emails, payment info, usage data, IP addresses, etc.)",
+          "required": true,
+          "type": "text",
+          "policy_input": "privacy-and-data-protection-policy"
+        },
+        {
+          "id": "priv_002",
+          "question": "How do users consent to data collection? Do you have a privacy policy, cookie consent, terms of service?",
+          "required": true,
+          "type": "text",
+          "policy_input": "privacy-and-data-protection-policy"
+        },
+        {
+          "id": "priv_003",
+          "question": "If a user asked you to delete all their data, could you do it? How? How long would it take?",
+          "required": true,
+          "type": "text",
+          "policy_input": "privacy-and-data-protection-policy"
+        },
+        {
+          "id": "priv_004",
+          "question": "Are you subject to GDPR, CCPA/CPRA, PIPEDA, or other privacy regulations?",
+          "required": true,
+          "type": "multi_choice",
+          "options": ["GDPR", "CCPA/CPRA", "PIPEDA", "HIPAA", "Other", "None / not sure"]
+        },
+        {
+          "id": "priv_005",
+          "question": "Does your data cross country borders? (e.g., users in EU, servers in US/Canada)",
+          "required": false,
+          "type": "text",
+          "policy_input": "privacy-and-data-protection-policy"
+        }
+      ]
+    },
+    {
+      "id": "processing_integrity",
+      "name": "Processing Integrity",
+      "phase": 2,
+      "tsc_category": "processing_integrity",
+      "questions": [
+        {
+          "id": "pi_001",
+          "question": "How do you validate input data in your applications? (form validation, API input sanitization, etc.)",
+          "required": true,
+          "type": "text"
+        },
+        {
+          "id": "pi_002",
+          "question": "How do you catch and handle errors? Do you have centralized error tracking? (Sentry, CloudWatch, etc.)",
+          "required": true,
+          "type": "text",
+          "creates_records": {"type": "system", "template": {"system_type": ["application"]}}
+        },
+        {
+          "id": "pi_003",
+          "question": "Do you have a QA or testing process before releases? Automated tests? Manual testing?",
+          "required": true,
+          "type": "text",
+          "policy_input": "change-management-policy"
+        }
+      ]
+    },
+    {
+      "id": "vendors",
+      "name": "Vendor & Third-Party Services",
+      "phase": 2,
+      "questions": [
+        {
+          "id": "vend_001",
+          "question": "List all the SaaS tools and third-party services your company uses. For each, note the name, what it's used for, and whether it touches customer data.",
+          "required": true,
+          "type": "text",
+          "creates_records": {"type": "vendor", "template": {"status": "active"}}
+        },
+        {
+          "id": "vend_002",
+          "question": "Which of those vendors are sub-processors — meaning they process your customers' data on your behalf? (e.g., a payment processor, an email service that sends to your users)",
+          "required": true,
+          "type": "text",
+          "policy_input": "vendor-management-policy"
+        },
+        {
+          "id": "vend_003",
+          "question": "When you pick a new vendor, what do you check? Do you look at their SOC 2 report, security page, privacy policy? Or do you just sign up?",
+          "required": true,
+          "type": "text",
+          "policy_input": "vendor-management-policy"
+        }
+      ]
+    }
+  ]
+}

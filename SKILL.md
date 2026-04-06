@@ -120,7 +120,8 @@ Both return per-item results with succeeded/failed counts. Items with `file` pat
 3. `decision-log-session --id X` — view session entries
 
 ### Audit Log
-1. `audit-log` — recent changes across all tables
+1. `verify-audit-log` — verify the hash chain integrity (tamper detection)
+2. `audit-log` — recent changes across all tables
 2. `audit-log --table controls` — changes to controls only
 3. `audit-log --action DELETE --limit 5` — recent deletions
 
@@ -168,6 +169,7 @@ Workflow:
 | `evidence` | List all evidence |
 | `submit-evidence` | Submit evidence for a test |
 | `pentest-findings` | List pentest findings |
+| `verify-audit-log` | Verify audit log hash chain integrity |
 | `audit-log` | Query the audit log |
 | `upload-decision-log` | Upload a JSONL decision log |
 | `decision-log-sessions` | List decision log sessions |

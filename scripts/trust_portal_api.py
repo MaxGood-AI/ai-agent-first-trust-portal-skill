@@ -343,6 +343,10 @@ def cmd_pentest_findings(args):
 
 # --- Audit Log ---
 
+def cmd_verify_audit_log(args):
+    _output(_api_request("GET", "/api/audit-log/verify"))
+
+
 def cmd_audit_log(args):
     params = {
         "table": args.table,
@@ -485,6 +489,7 @@ def main():
     sub.add_parser("pentest-findings", help="List pentest findings")
 
     # Audit Log
+    sub.add_parser("verify-audit-log", help="Verify audit log hash chain integrity")
     p = sub.add_parser("audit-log", help="Query the audit log")
     p.add_argument("--table", help="Filter by table name")
     p.add_argument("--record-id", help="Filter by record ID")
@@ -532,6 +537,7 @@ def main():
         "evidence": cmd_evidence,
         "submit-evidence": cmd_submit_evidence,
         "pentest-findings": cmd_pentest_findings,
+        "verify-audit-log": cmd_verify_audit_log,
         "audit-log": cmd_audit_log,
         "upload-decision-log": cmd_upload_decision_log,
         "decision-log-sessions": cmd_decision_log_sessions,

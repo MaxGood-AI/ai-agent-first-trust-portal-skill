@@ -10,6 +10,7 @@ A Claude Code agent skill for managing SOC 2 compliance data through the [AI Age
 - **Decision logs**: Upload session transcripts for compliance audit trail
 - **Portal settings**: View and update portal configuration
 - **Pentest findings**: View security assessment results
+- **Evidence collectors**: Configure, test, run, and inspect the portal's five evidence collectors (AWS, Git/CodeCommit, Platform, Policy, Vendor)
 
 ## Installation
 
@@ -43,6 +44,13 @@ python3 scripts/trust_portal_api.py controls
 
 # Query audit log
 python3 scripts/trust_portal_api.py audit-log --table controls --limit 5
+
+# Configure and run an evidence collector (credentials via data file only)
+cat > /tmp/policy-config.json <<'EOF'
+{"credential_mode": "none", "schedule_cron": "0 6 * * 1", "enabled": true}
+EOF
+python3 scripts/trust_portal_api.py configure-collector --name policy --data-file /tmp/policy-config.json
+python3 scripts/trust_portal_api.py run-collector --name policy
 ```
 
 See [SKILL.md](SKILL.md) for the complete command reference.

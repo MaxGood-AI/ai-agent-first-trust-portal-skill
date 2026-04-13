@@ -1,6 +1,6 @@
 ---
 name: trust-portal
-description: Let AI agents drive SOC 2 Type 2 compliance end-to-end. Use when the user wants to get SOC 2 compliant, start a compliance program, manage controls, view or submit evidence, check compliance scores, generate policies, review systems/vendors/risks, query the audit log, upload decision logs, or manage portal settings. TRIGGER on any of these phrases — "get me SOC 2 compliant", "set up compliance", "start our compliance program", "check compliance", "what evidence is missing", "show the audit log", or any mention of SOC 2 controls, tests, evidence, or policies. For end-to-end SOC 2 journey guidance, read references/soc2-playbook.md which contains the complete 8-phase workflow with exact API calls, decision trees, and conversational scripts.
+description: Let AI agents drive SOC 2 Type 2 compliance end-to-end. Use when the user wants to get SOC 2 compliant, start a compliance program, manage controls, view or submit evidence, check compliance scores, generate policies, review systems/vendors/risks, query the audit log, upload decision logs, manage portal settings, or configure and run automated evidence collectors (AWS, Git/CodeCommit, Platform, Policy, Vendor). TRIGGER on any of these phrases — "get me SOC 2 compliant", "set up compliance", "start our compliance program", "check compliance", "what evidence is missing", "show the audit log", "set up evidence collection", "configure collectors", "run the collectors", or any mention of SOC 2 controls, tests, evidence, policies, or evidence collectors. For end-to-end SOC 2 journey guidance, read references/soc2-playbook.md which contains the complete 8-phase workflow with exact API calls, decision trees, and conversational scripts.
 license: MIT
 compatibility: Requires python3 and environment variables TRUST_PORTAL_API_URL and TRUST_PORTAL_API_KEY
 metadata:
@@ -140,6 +140,64 @@ Both return per-item results with succeeded/failed counts. Items with `file` pat
 1. `settings` — view current portal settings
 2. `update-settings --data-file /tmp/settings.json` — update settings (admin only)
 
+### Evidence Collectors
+
+Evidence collectors are the core of SOC 2 Phase 5 (Evidence Collection). They
+gather compliance evidence from infrastructure on a schedule. The portal
+ships five: `aws`, `git`, `platform`, `policy`, `vendor`.
+
+```bash
+# Discover which AWS account/region the portal is running in
+python3 scripts/trust_portal_api.py collector-environment
+
+# Inventory / status
+python3 scripts/trust_portal_api.py collectors
+python3 scripts/trust_portal_api.py collector --name aws
+
+# Configure a collector — credentials MUST come from a JSON file, never CLI args
+cat > /tmp/aws-config.json <<'EOF'
+{
+  "credential_mode": "task_role_assume",
+  "credentials": {
+    "role_arn": "arn:aws:iam::123456789012:role/trust-portal-collector-role"
+  },
+  "config": {"region": "ca-central-1"},
+  "schedule_cron": "0 6 * * 1",
+  "enabled": true
+}
+EOF
+python3 scripts/trust_portal_api.py configure-collector --name aws --data-file /tmp/aws-config.json
+
+# Verify the credentials work (STS identity + optional permission probe)
+python3 scripts/trust_portal_api.py test-collector-connection --name aws
+python3 scripts/trust_portal_api.py probe-collector --name aws
+
+# Fetch the IAM policy JSON the collector needs (copy this into Terraform)
+python3 scripts/trust_portal_api.py collector-required-policy --name aws
+
+# Enable / disable
+python3 scripts/trust_portal_api.py enable-collector --name aws --enabled true
+
+# Trigger a manual run
+python3 scripts/trust_portal_api.py run-collector --name aws
+
+# Run history and per-check detail
+python3 scripts/trust_portal_api.py collector-runs --name aws
+python3 scripts/trust_portal_api.py collector-run --run-id <uuid>
+```
+
+**Credential safety.** The `configure-collector` command requires
+`--data-file` because credentials (AWS access keys, bearer tokens, collector
+role ARNs with external IDs) must never appear as CLI arguments — they would
+leak into shell history, process listings, decision-log transcripts, and any
+hook that captures command lines. Write the JSON body to a temp file and
+pass the file path; the contents of the file never touch the command line.
+
+**Simpler collectors.** `policy` and `vendor` don't need credentials at all
+(they read the portal's own database). `platform` only needs credentials if
+your services require bearer or basic auth. For these, `credential_mode`
+can be set to `"none"`.
+
 ## Description Updates (IMPORTANT)
 
 **Always use `--data-file` instead of inline JSON for create or update operations.** This avoids multi-line quoting issues in shell commands.
@@ -186,6 +244,17 @@ Workflow:
 | `upload-decision-log` | Upload a JSONL decision log |
 | `decision-log-sessions` | List decision log sessions |
 | `decision-log-session` | Get a decision log session |
+| `collector-environment` | Detect running environment (AWS account/region/identity) |
+| `collectors` | List all configured evidence collectors |
+| `collector` | Get one collector config (credentials never returned) |
+| `configure-collector` | Save collector config + credentials (requires `--data-file`) |
+| `test-collector-connection` | Lightweight connection test for a collector |
+| `probe-collector` | Run the full permission probe for a collector |
+| `enable-collector` | Enable or disable a collector |
+| `run-collector` | Trigger a manual collector run synchronously |
+| `collector-runs` | Recent run history for a collector |
+| `collector-run` | Run detail with per-check results |
+| `collector-required-policy` | Return the IAM policy JSON a collector needs |
 
 ## API Reference
 

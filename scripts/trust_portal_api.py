@@ -394,6 +394,60 @@ def cmd_decision_log_sessions(args):
     _output(_api_request("GET", "/api/decision-log/sessions"))
 
 
+# --- Collectors (evidence collection system) ---
+
+
+def cmd_collector_environment(args):
+    _output(_api_request("GET", "/api/collectors/environment"))
+
+
+def cmd_collectors(args):
+    _output(_api_request("GET", "/api/collectors"))
+
+
+def cmd_collector(args):
+    _output(_api_request("GET", f"/api/collectors/{args.name}"))
+
+
+def cmd_configure_collector(args):
+    # Credentials are sensitive — always read the body from a file, never from
+    # CLI args. The file may contain a "credentials" key with decrypted secrets.
+    body = _read_data_file(args.data_file)
+    _output(_api_request("POST", f"/api/collectors/{args.name}/configure", body=body))
+
+
+def cmd_test_collector_connection(args):
+    _output(_api_request("POST", f"/api/collectors/{args.name}/test-connection"))
+
+
+def cmd_probe_collector(args):
+    body = None
+    if args.data_file:
+        body = _read_data_file(args.data_file)
+    _output(_api_request("POST", f"/api/collectors/{args.name}/probe", body=body))
+
+
+def cmd_enable_collector(args):
+    body = {"enabled": args.enabled}
+    _output(_api_request("POST", f"/api/collectors/{args.name}/enable", body=body))
+
+
+def cmd_run_collector(args):
+    _output(_api_request("POST", f"/api/collectors/{args.name}/run"))
+
+
+def cmd_collector_runs(args):
+    _output(_api_request("GET", f"/api/collectors/{args.name}/runs"))
+
+
+def cmd_collector_run(args):
+    _output(_api_request("GET", f"/api/collectors/runs/{args.run_id}"))
+
+
+def cmd_collector_required_policy(args):
+    _output(_api_request("GET", f"/api/collectors/{args.name}/required-policy"))
+
+
 def cmd_decision_log_session(args):
     _output(_api_request("GET", f"/api/decision-log/session/{args.id}"))
 
@@ -511,6 +565,52 @@ def main():
     p = sub.add_parser("decision-log-session", help="Get a decision log session")
     p.add_argument("--id", required=True, help="Session ID")
 
+    # Collectors (evidence collection system)
+    sub.add_parser(
+        "collector-environment",
+        help="Detect running environment (AWS account/region/identity)",
+    )
+    sub.add_parser(
+        "collectors",
+        help="List all configured evidence collectors",
+    )
+    p = sub.add_parser("collector", help="Get a single collector config (credentials never returned)")
+    p.add_argument("--name", required=True, help="Collector name (aws, git, platform, policy, vendor)")
+    p = sub.add_parser(
+        "configure-collector",
+        help="Save collector config and credentials. Credentials MUST come from --data-file, never CLI args.",
+    )
+    p.add_argument("--name", required=True, help="Collector name")
+    p.add_argument(
+        "--data-file",
+        required=True,
+        help="JSON file with {credential_mode, credentials?, config?, schedule_cron?, enabled?}",
+    )
+    p = sub.add_parser("test-collector-connection", help="Run a lightweight connection test for a collector")
+    p.add_argument("--name", required=True, help="Collector name")
+    p = sub.add_parser("probe-collector", help="Run the full permission probe for a collector")
+    p.add_argument("--name", required=True, help="Collector name")
+    p.add_argument(
+        "--data-file",
+        help="Optional JSON file with {required_actions: [...]} to override the collector's default list",
+    )
+    p = sub.add_parser("enable-collector", help="Enable or disable a collector")
+    p.add_argument("--name", required=True, help="Collector name")
+    p.add_argument(
+        "--enabled",
+        type=lambda v: v.lower() in ("true", "1", "yes", "on"),
+        default=True,
+        help="true/false (default true)",
+    )
+    p = sub.add_parser("run-collector", help="Trigger a manual collector run synchronously")
+    p.add_argument("--name", required=True, help="Collector name")
+    p = sub.add_parser("collector-runs", help="Recent run history for a collector")
+    p.add_argument("--name", required=True, help="Collector name")
+    p = sub.add_parser("collector-run", help="Get run detail with per-check results")
+    p.add_argument("--run-id", required=True, help="CollectorRun UUID")
+    p = sub.add_parser("collector-required-policy", help="Return the IAM policy JSON a collector needs")
+    p.add_argument("--name", required=True, help="Collector name")
+
     args = parser.parse_args()
 
     commands = {
@@ -548,6 +648,17 @@ def main():
         "upload-decision-log": cmd_upload_decision_log,
         "decision-log-sessions": cmd_decision_log_sessions,
         "decision-log-session": cmd_decision_log_session,
+        "collector-environment": cmd_collector_environment,
+        "collectors": cmd_collectors,
+        "collector": cmd_collector,
+        "configure-collector": cmd_configure_collector,
+        "test-collector-connection": cmd_test_collector_connection,
+        "probe-collector": cmd_probe_collector,
+        "enable-collector": cmd_enable_collector,
+        "run-collector": cmd_run_collector,
+        "collector-runs": cmd_collector_runs,
+        "collector-run": cmd_collector_run,
+        "collector-required-policy": cmd_collector_required_policy,
     }
 
     handler = commands.get(args.command)

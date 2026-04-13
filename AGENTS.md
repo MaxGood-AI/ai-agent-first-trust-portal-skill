@@ -2,7 +2,7 @@
 
 ## Overview
 
-This is a Claude Code agent skill that wraps the AI Agent-First Trust Portal API. It provides a CLI interface for managing SOC 2 compliance data: controls, tests, policies, evidence, audit logs, and portal settings.
+This is a Claude Code agent skill that wraps the AI Agent-First Trust Portal API. It provides a CLI interface for managing SOC 2 compliance data: controls, tests, policies, evidence, audit logs, portal settings, and automated evidence collectors (AWS, Git/CodeCommit, Platform, Policy, Vendor).
 
 ## File Structure
 
@@ -26,6 +26,7 @@ This is a Claude Code agent skill that wraps the AI Agent-First Trust Portal API
 - **All output** must be valid JSON via `json.dump()`
 - **Errors** exit with code 1 and output `{"error": true, "message": "..."}`
 - **Write operations** use `--data-file` (read JSON from a file) to avoid shell quoting issues
+- **Sensitive credentials** (API keys, access keys, bearer tokens, role ARNs with external IDs) MUST come from `--data-file` only — never accept them as CLI arguments, since argv leaks into shell history, process lists, decision-log transcripts, and any hook that captures command lines. See `configure-collector` for the canonical example.
 
 ## Environment Variables
 

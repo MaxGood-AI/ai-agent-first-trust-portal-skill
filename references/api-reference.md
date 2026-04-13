@@ -73,3 +73,82 @@ Upload query parameters:
 | PUT | `/api/settings` | Admin | Update portal settings (JSON body) |
 
 Settings fields: `company_legal_name`, `company_brand_name`, `contact_email`, `physical_address`, `website_url`, `soc2_current_stage`, `soc2_stage_dates`, `legal_content_md`, `legal_external_url`, `ai_transparency_md`.
+
+## Evidence Collectors
+
+All collector endpoints require admin authentication. Credentials are
+never returned from any endpoint — the response indicates only whether
+credentials are stored (`has_stored_credentials`).
+
+Five collectors are registered in the portal: `aws`, `git`, `platform`,
+`policy`, `vendor`. Each has its own required IAM permissions (AWS-backed
+collectors) or config schema (e.g., `platform.services`).
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| GET | `/api/collectors/environment` | Admin | Detect current AWS account, region, identity, and whether the portal is running on ECS |
+| GET | `/api/collectors` | Admin | List all collector configs (no credentials) |
+| GET | `/api/collectors/{name}` | Admin | Get a single collector config (no credentials) |
+| POST | `/api/collectors/{name}/configure` | Admin | Create or update a collector config. Body: `{credential_mode, credentials?, config?, schedule_cron?, enabled?}` |
+| POST | `/api/collectors/{name}/test-connection` | Admin | Resolve credentials and run a minimal identity check (STS GetCallerIdentity for AWS-backed collectors) |
+| POST | `/api/collectors/{name}/probe` | Admin | Run the full permission probe for the collector. Result cached on the config. Optional body: `{required_actions: [...]}` to override the collector's default list |
+| POST | `/api/collectors/{name}/enable` | Admin | Toggle enabled/disabled. Body: `{enabled: bool}` |
+| POST | `/api/collectors/{name}/run` | Admin | Trigger a manual run synchronously. Creates a `CollectorRun` row and returns its final state |
+| GET | `/api/collectors/{name}/runs` | Admin | Recent run history (up to 100 runs) |
+| GET | `/api/collectors/runs/{run_id}` | Admin | Single run detail with per-check results |
+| GET | `/api/collectors/{name}/required-policy` | Admin | Return the IAM policy JSON the collector needs, either from `iam/trust-portal-collector-policy.json` in the portal repo or synthesized from the collector's declared `required_permissions` |
+
+### `configure-collector` body schema
+
+```json
+{
+  "credential_mode": "task_role | task_role_assume | access_keys | none",
+  "credentials": {
+    "role_arn": "arn:aws:iam::...:role/...",
+    "external_id": "...",
+    "session_name": "...",
+    "access_key_id": "...",
+    "secret_access_key": "...",
+    "bearer_token": "...",
+    "basic_user": "...",
+    "basic_password": "..."
+  },
+  "config": {
+    "region": "ca-central-1",
+    "services": [
+      {"name": "api", "url": "https://api.example.com", "health_path": "/health", "auth": "none"}
+    ],
+    "repositories": ["repo-one", "repo-two"],
+    "lookback_days": 30,
+    "review_warning_days": 30,
+    "probe_urls": false,
+    "http_timeout_seconds": 10
+  },
+  "schedule_cron": "0 6 * * 1",
+  "enabled": true
+}
+```
+
+Only the fields relevant to the chosen collector are read; unknown fields
+are ignored. `credentials` must be omitted (or empty) for `credential_mode`
+values of `none` or `task_role`.
+
+### Permission probe result shape
+
+```json
+{
+  "ok": true,
+  "probe": {
+    "session_identity": "arn:aws:sts::123456789012:assumed-role/...",
+    "account_id": "123456789012",
+    "region": "ca-central-1",
+    "checked_at": "2026-04-13T10:15:00Z",
+    "all_passed": false,
+    "results": [
+      {"action": "iam:ListUsers", "status": "pass", "message": null},
+      {"action": "s3:GetBucketEncryption", "status": "fail", "message": "AccessDenied"}
+    ],
+    "missing_actions": ["s3:GetBucketEncryption"]
+  }
+}
+```
